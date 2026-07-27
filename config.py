@@ -70,6 +70,18 @@ class AppConfig:
         default_factory=lambda: int(os.getenv("UPLOAD_LIMIT", str(MAX_UPLOAD_SIZE_MB)))
     )
 
+    # RAG Settings
+    chunk_size: int = field(
+        default_factory=lambda: int(os.getenv("CHUNK_SIZE", "1000"))
+    )
+    chunk_overlap: int = field(
+        default_factory=lambda: int(os.getenv("CHUNK_OVERLAP", "200"))
+    )
+    top_k: int = field(default_factory=lambda: int(os.getenv("TOP_K", "4")))
+    collection_name: str = field(
+        default_factory=lambda: os.getenv("COLLECTION_NAME", "edumentor_collection")
+    )
+
     def validate(self) -> None:
         """
         Validate application configuration properties and emit logger warnings

@@ -5,7 +5,7 @@ EduMentor AI UI Module
 This module is responsible for rendering all Streamlit UI components.
 It abstracts rendering logic for the Header, Sidebar, Chat Window, and Footer
 to enforce separation of concerns, and binds UI interactions directly to the
-LLMClient and PromptManager state objects.
+AIAgent orchestrator instead of exposing individual subsystem layers.
 """
 
 import streamlit as st
@@ -15,7 +15,7 @@ from modules.constants import (
     COLOR_PRIMARY,
     COLOR_SECONDARY,
     COLOR_TEXT_MUTED,
-    STATE_CHAT_HISTORY,
+    DIR_UPLOADS,
 )
 from modules.logger import get_logger
 
@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 class UIController:
     """
     Renders Streamlit layout components for the EduMentor AI application interface.
-    Coordinates interaction logic with LLMClient and PromptManager.
+    Coordinates interaction logic exclusively through the central AIAgent orchestrator.
     """
 
     def __init__(self) -> None:
@@ -49,7 +49,9 @@ class UIController:
         if theme == "light":
             bg_color = "#F8FAFC"
             text_color = "#0F172A"
-            header_gradient = "linear-gradient(135deg, rgba(88, 101, 242, 0.1), rgba(16, 185, 129, 0.1))"
+            header_gradient = (
+                "linear-gradient(135deg, rgba(88, 101, 242, 0.1), rgba(16, 185, 129, 0.1))"
+            )
             card_border = "rgba(0, 0, 0, 0.05)"
             tag_bg = "rgba(88, 101, 242, 0.1)"
             tag_text = "#5865F2"
@@ -134,10 +136,12 @@ class UIController:
     def render_sidebar(self) -> None:
         """
         Renders control elements and session status information inside the Streamlit Sidebar.
+        Handles PDF uploading, active document metadata, and database cleaning triggers.
         """
         from config import config
 
         logger.debug("Rendering Sidebar component.")
+
         with st.sidebar:
             st.markdown(f"## 🎓 {config.app_name}")
             st.markdown("---")
@@ -149,27 +153,145 @@ class UIController:
 
             st.markdown("---")
 
-            # System Status Section showing LLM Connection
-            st.markdown("### ⚙️ Connection Status")
+            # PDF Upload Section
+            st.markdown("### 📂 Study Material")
+            uploaded_file = st.file_uploader(
+                "Upload Syllabus/PDF",
+                type=["pdf"],
+                help="Upload a PDF file to enable document-grounded Socratic tutoring.",
+            )
+
+            if uploaded_file is not None:
+                # Check if it is a new file or needs processing
+                if st.session_state.get("current_document_name") != uploaded_file.name:
+                    logger.info(
+                        "PDF Uploaded: Received new document upload: %s",
+                        uploaded_file.name,
+                    )
+
+                    # 1. Upload and save the PDF file copy locally
+                    with st.spinner("Processing PDF..."):
+                        try:
+                            from modules.pdf_loader import PDFLoader
+
+                            loader = PDFLoader(
+                                upload_dir=DIR_UPLOADS,
+                                max_size_mb=config.max_upload_size_mb,
+                            )
+                            saved_path = loader.upload(uploaded_file)
+
+                            st.session_state.current_document_name = uploaded_file.name
+                            st.session_state.current_document_path = saved_path
+                            logger.info(
+                                "PDF Loaded: Upload file copy saved to %s", saved_path
+                            )
+                        except Exception as e:
+                            st.error(f"Failed to process PDF: {str(e)}")
+                            logger.error(
+                                "UI: PDF upload processing failed: %s",
+                                str(e),
+                                exc_info=True,
+                            )
+                            st.session_state.current_document_name = None
+                            st.session_state.current_document_path = None
+                            st.rerun()
+
+                    # 2. Extract, chunk, generate embeddings, and insert in ChromaDB
+                    if st.session_state.get("current_document_path"):
+                        with st.spinner("Generating embeddings..."):
+                            try:
+                                res = st.session_state.agent.rag_engine.process_document(
+                                    st.session_state.current_document_path
+                                )
+                                st.session_state.current_document_metadata = res
+                                st.success(f"Processed: {uploaded_file.name}")
+                                logger.info(
+                                    "UI: Document indexed. Status: %s",
+                                    res.get("status"),
+                                )
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Failed to generate embeddings: {str(e)}")
+                                logger.error(
+                                    "UI: Embedding generation/indexing failed: %s",
+                                    str(e),
+                                    exc_info=True,
+                                )
+                                st.session_state.current_document_name = None
+                                st.session_state.current_document_path = None
+                                st.rerun()
+            else:
+                # If uploader is empty but we have an active document name, the user removed it!
+                if st.session_state.get("current_document_name") is not None:
+                    logger.info(
+                        "UI: Active PDF removed by user. Wiping ChromaDB collection."
+                    )
+                    try:
+                        st.session_state.agent.rag_engine.clear_database()
+                    except Exception as e:
+                        logger.error(
+                            "UI: Failed to clear ChromaDB on file removal: %s", str(e)
+                        )
+                    st.session_state.current_document_name = None
+                    st.session_state.current_document_path = None
+                    st.session_state.current_document_metadata = None
+                    st.info("Study material removed. Vector store cleared.")
+                    st.rerun()
+
+            # Active Document details display
+            if st.session_state.get("current_document_name"):
+                st.markdown("### 📄 Active Document")
+                meta = st.session_state.get("current_document_metadata", {})
+                pages = meta.get("total_pages", "Unknown")
+                chunks = meta.get("total_chunks", "Unknown")
+                st.markdown(
+                    f"**File:** `{st.session_state.current_document_name}`  \n"
+                    f"**Pages:** {pages} &bull; **Chunks:** {chunks}"
+                )
+
+            st.markdown("---")
+
+            # System Connection and RAG Status Section
+            st.markdown("### ⚙️ System Status")
             status = st.session_state.get("connection_status", "Connecting...")
 
             if status == "Connected":
                 st.markdown(
-                    '<span class="status-tag" style="background-color:rgba(16,185,129,0.1);color:#10B981;border-color:#10B98133;">🟢 Connected to Groq</span>',
+                    '<span class="status-tag" style="background-color:'
+                    "rgba(16,185,129,0.1);color:#10B981;"
+                    'border-color:#10B98133;">🟢 Connected to Groq</span>',
                     unsafe_allow_html=True,
                 )
             elif status == "Connecting...":
                 st.markdown(
-                    '<span class="status-tag" style="background-color:rgba(245,158,11,0.1);color:#F59E0B;border-color:#F59E0B33;">🟡 Connecting...</span>',
+                    '<span class="status-tag" style="background-color:'
+                    "rgba(245,158,11,0.1);color:#F59E0B;"
+                    'border-color:#F59E0B33;">🟡 Connecting...</span>',
                     unsafe_allow_html=True,
                 )
             else:
                 st.markdown(
-                    '<span class="status-tag" style="background-color:rgba(239,68,68,0.1);color:#EF4444;border-color:#EF444433;">🔴 Connection Error</span>',
+                    '<span class="status-tag" style="background-color:'
+                    "rgba(239,68,68,0.1);color:#EF4444;"
+                    'border-color:#EF444433;">🔴 Connection Error</span>',
                     unsafe_allow_html=True,
                 )
                 err_key = st.session_state.get("connection_error", "general")
                 st.error(st.session_state.prompt_manager.get_error_prompt(err_key))
+
+            # Display RAG database status
+            rag_tool = st.session_state.agent.tool_registry.get_tool("RAG Tool")
+            rag_status = rag_tool.status() if rag_tool else {}
+            db_init = "Ready" if rag_status.get("database_initialized") else "Offline"
+            model_loaded = (
+                "Loaded" if rag_status.get("embedding_model_loaded") else "Pending"
+            )
+
+            st.markdown(
+                f"- **Vector Store:** `{db_init}`  \n"
+                f"- **Embeddings:** `{model_loaded}`",
+                unsafe_allow_html=True,
+            )
 
             st.markdown("---")
 
@@ -179,16 +301,28 @@ class UIController:
                 "Clear Chat Button",
                 key="clear_chat_btn",
                 use_container_width=True,
-                help="Clear current chat log and reset metrics",
+                help="Clear current chat log and wipe vector store collections",
             ):
                 logger.info(
-                    "UI: Clear Chat button clicked. Resetting history and metrics."
+                    "UI: Clear Chat button clicked. Resetting history, memory, and database."
                 )
-                st.session_state[STATE_CHAT_HISTORY] = []
                 st.session_state.conversation_count = 0
                 st.session_state.connection_status = "Connecting..."
                 st.session_state.connection_error = None
-                st.success("Chat history cleared!")
+
+                # Wipe persistent database collections and agent session memory
+                try:
+                    st.session_state.agent.memory.clear()
+                    st.session_state.agent.rag_engine.clear_database()
+                    logger.info("UI: Vector collection and memory wiped successfully.")
+                except Exception as e:
+                    logger.error("UI: Failed to clear database/memory: %s", str(e))
+
+                st.session_state.current_document_name = None
+                st.session_state.current_document_path = None
+                st.session_state.current_document_metadata = None
+
+                st.success("Chat history and vector store cleared!")
                 st.rerun()
 
             st.markdown("---")
@@ -201,23 +335,22 @@ class UIController:
                 "EduMentor AI is a Socratic tutor that helps students build critical thinking skills "
                 "by guiding them through concepts step-by-step.<br><br>"
                 "**Future Features:**\n"
-                "- PDF Upload and Syllabus loader\n"
                 "- Socratic Agent planning\n"
-                "- ChromaDB Vector Store & RAG",
+                "- Multiple document library loading",
                 unsafe_allow_html=True,
             )
 
     def render_chat_window(self) -> None:
         """
         Renders the active chat log and processes user questions.
-        If history is empty, shows the Greeting Prompt from PromptManager.
+        All requests are routed through the central AI Agent.
         """
         logger.debug("Rendering Chat Window component.")
 
         st.markdown("### 💬 Socratic Chat Workspace")
 
-        # 1. Retrieve history from session state
-        chat_history = st.session_state.get(STATE_CHAT_HISTORY, [])
+        # 1. Retrieve history from Agent Memory (single source of truth)
+        chat_history = st.session_state.agent.memory.load()
 
         # If history is empty, display greeting from PromptManager
         if not chat_history:
@@ -244,9 +377,7 @@ class UIController:
         # 3. Capture user question
         if user_query := st.chat_input("Ask your Socratic Tutor a question..."):
             logger.info("UI: User message received: %s", user_query[:50])
-            st.session_state[STATE_CHAT_HISTORY].append(
-                {"role": "user", "content": user_query}
-            )
+            st.session_state.agent.memory.add("user", user_query)
             st.session_state.conversation_count += 1
             st.rerun()
 
@@ -255,28 +386,12 @@ class UIController:
             user_msg = chat_history[-1]["content"]
 
             with st.chat_message("assistant"):
-                with st.spinner("EduMentor AI is formulating a Socratic response..."):
+                with st.spinner("EduMentor AI is formulating a response..."):
                     try:
-                        logger.info("UI: Requesting response from LLMClient.")
-                        # Compile prompt instructions inside PromptManager (System + Tutor + User Question)
-                        prompt_payload = (
-                            st.session_state.prompt_manager.build_tutor_prompt(user_msg)
-                        )
-
-                        # Generate response through LLMClient
-                        response = st.session_state.llm_client.generate_response(
-                            system_instruction=prompt_payload["system"],
-                            user_question=prompt_payload["user"],
-                        )
-
-                        # Save assistant response to session state
-                        st.session_state[STATE_CHAT_HISTORY].append(
-                            {"role": "assistant", "content": response}
-                        )
-                        logger.info(
-                            "UI: Socratic response generated and stored in session state."
-                        )
-
+                        logger.info("UI: Requesting response from AI Agent.")
+                        # Route request to central AI Agent
+                        st.session_state.agent.process_request(user_msg)
+                        logger.info("UI: AI Agent execution completed.")
                     except Exception as e:
                         # Capture and map exception to friendly error key
                         err_key = str(e)
@@ -284,10 +399,8 @@ class UIController:
                             err_key
                         )
 
-                        # Append the friendly error message to chat history to show it in context
-                        st.session_state[STATE_CHAT_HISTORY].append(
-                            {"role": "assistant", "content": error_text}
-                        )
+                        # Save the friendly error message to memory
+                        st.session_state.agent.memory.add("assistant", error_text)
                         logger.error(
                             "UI: Generation failed with key %s: %s",
                             err_key,

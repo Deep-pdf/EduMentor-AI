@@ -3,7 +3,7 @@ EduMentor AI Constants Module
 =============================
 
 This module centralizes all constant values used across the EduMentor AI application.
-To maintain clean architecture, avoid magic strings/numbers elsewhere in the codebase; 
+To maintain clean architecture, avoid magic strings/numbers elsewhere in the codebase;
 instead, reference the constants defined here.
 
 Future Scope:

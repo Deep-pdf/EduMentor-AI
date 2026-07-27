@@ -8,7 +8,7 @@ and user-friendly error messages) to keep prompts isolated from LLM invocation
 and application UI code.
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 from modules.logger import get_logger
 
 logger = get_logger(__name__)
@@ -150,6 +150,168 @@ class PromptManager:
             "PromptManager: Compiling System + Tutor instructions with user question."
         )
         system_content = f"{self.get_system_prompt()}\n\n{self.get_tutor_prompt()}"
+        return {"system": system_content, "user": user_question}
+
+    # Centralized RAG Prompt Template
+    RAG_PROMPT: str = (
+        "You are acting as an educational tutor answering questions based on an uploaded document. "
+        "Adhere strictly to your Socratic tutoring style (Friendly, Encouraging, Patient, and Structured) "
+        "and follow these strict grounding rules:\n"
+        "1. Answer the student's question using ONLY the provided document context below.\n"
+        "2. If the context does not contain enough information to answer the question, output exactly: "
+        '"The uploaded document does not contain enough information to answer this question."\n'
+        "3. Do not hallucinate or fabricate facts. Never invent any details or external facts not present "
+        "in the provided context.\n"
+        "4. Structure your response professionally using Markdown formatting.\n\n"
+        "--- PROVIDED DOCUMENT CONTEXT ---\n"
+        "{context}\n"
+        "---------------------------------"
+    )
+
+    def build_rag_prompt(self, user_question: str, context: str) -> Dict[str, str]:
+        """
+        Construct a structured prompt dictionary for document-based RAG questions.
+        Combines Socratic Persona + RAG Constraints + Retrieved Context + User Question.
+
+        Args:
+            user_question (str): The raw question from the student.
+            context (str): The retrieved document context blocks.
+
+        Returns:
+            Dict[str, str]: A dictionary with 'system' and 'user' keys.
+        """
+        logger.info(
+            "Prompt Built: Compiling Socratic RAG prompt with retrieved context."
+        )
+        system_content = (
+            f"{self.get_system_prompt()}\n\n"
+            f"{self.get_tutor_prompt()}\n\n"
+            f"{self.RAG_PROMPT.format(context=context)}"
+        )
+        return {"system": system_content, "user": user_question}
+
+    def format_history(self, history: List[Dict[str, str]]) -> str:
+        """
+        Format list of raw history dictionaries into a human-readable chat transcription.
+
+        Args:
+            history (List[Dict[str, str]]): List of previous message dictionaries.
+
+        Returns:
+            str: Formatted transcription string.
+        """
+        if not history:
+            return ""
+        formatted = []
+        for msg in history:
+            role = "Student" if msg["role"] == "user" else "Tutor"
+            formatted.append(f"{role}: {msg['content']}")
+        return "\n".join(formatted)
+
+    def build_tutor_prompt_with_history(
+        self, user_question: str, history: List[Dict[str, str]]
+    ) -> Dict[str, str]:
+        """
+        Build prompt incorporating the Socratic Tutor persona, previous conversation history, and user question.
+
+        Args:
+            user_question (str): The current user query.
+            history (List[Dict[str, str]]): List of previous conversation turns.
+
+        Returns:
+            Dict[str, str]: Compiled prompt instructions.
+        """
+        logger.info("Prompt Built: Compiling tutor prompt with history.")
+        history_str = self.format_history(history)
+        history_context = ""
+        if history_str:
+            history_context = (
+                f"\n\n--- PREVIOUS CONVERSATION HISTORY ---\n"
+                f"{history_str}\n"
+                f"--------------------------------------"
+            )
+
+        system_content = f"{self.get_system_prompt()}\n\n{self.get_tutor_prompt()}{history_context}"
+        return {"system": system_content, "user": user_question}
+
+    def build_rag_prompt_with_history(
+        self, user_question: str, context: str, history: List[Dict[str, str]]
+    ) -> Dict[str, str]:
+        """
+        Build prompt incorporating the Socratic Tutor persona, RAG context grounding constraints,
+        conversation history, and user question.
+
+        Args:
+            user_question (str): The current user query.
+            context (str): The retrieved document context blocks.
+            history (List[Dict[str, str]]): List of previous conversation turns.
+
+        Returns:
+            Dict[str, str]: Compiled prompt instructions.
+        """
+        logger.info("Prompt Built: Compiling RAG prompt with history.")
+        history_str = self.format_history(history)
+        history_context = ""
+        if history_str:
+            history_context = (
+                f"\n\n--- PREVIOUS CONVERSATION HISTORY ---\n"
+                f"{history_str}\n"
+                f"--------------------------------------"
+            )
+
+        system_content = (
+            f"{self.get_system_prompt()}\n\n"
+            f"{self.get_tutor_prompt()}\n\n"
+            f"{self.RAG_PROMPT.format(context=context)}"
+            f"{history_context}"
+        )
+        return {"system": system_content, "user": user_question}
+
+    # Centralized Search Prompt Template
+    SEARCH_PROMPT: str = (
+        "You are acting as an educational tutor answering questions based on real-time web search results. "
+        "Adhere strictly to your Socratic tutoring style (Friendly, Encouraging, Patient, and Structured) "
+        "and follow these rules:\n"
+        "1. Answer the student's question using the provided search results context below.\n"
+        "2. If the search results do not contain enough information to answer the question, admit it and "
+        "help the student explore options.\n"
+        "3. Structure your response professionally using Markdown formatting.\n\n"
+        "--- PROVIDED SEARCH RESULTS ---\n"
+        "{context}\n"
+        "---------------------------------"
+    )
+
+    def build_search_prompt_with_history(
+        self, user_question: str, context: str, history: List[Dict[str, str]]
+    ) -> Dict[str, str]:
+        """
+        Build prompt incorporating the Socratic Tutor persona, search results context,
+        conversation history, and user question.
+
+        Args:
+            user_question (str): The current user query.
+            context (str): The web search result contents.
+            history (List[Dict[str, str]]): List of previous conversation turns.
+
+        Returns:
+            Dict[str, str]: Compiled prompt instructions.
+        """
+        logger.info("Prompt Built: Compiling search prompt with history.")
+        history_str = self.format_history(history)
+        history_context = ""
+        if history_str:
+            history_context = (
+                f"\n\n--- PREVIOUS CONVERSATION HISTORY ---\n"
+                f"{history_str}\n"
+                f"--------------------------------------"
+            )
+
+        system_content = (
+            f"{self.get_system_prompt()}\n\n"
+            f"{self.get_tutor_prompt()}\n\n"
+            f"{self.SEARCH_PROMPT.format(context=context)}"
+            f"{history_context}"
+        )
         return {"system": system_content, "user": user_question}
 
     # Maintaining placeholder methods from original skeleton to prevent breaking compatibility

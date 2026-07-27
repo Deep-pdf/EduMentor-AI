@@ -3,7 +3,7 @@ EduMentor AI Utilities Module
 =============================
 
 This module provides common helper functions used across the application.
-Includes placeholder methods for future implementations of string validation, 
+Includes placeholder methods for future implementations of string validation,
 file path resolution, system utilities, and data formatting.
 
 Future Scope:

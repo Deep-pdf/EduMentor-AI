@@ -2,10 +2,9 @@
 EduMentor AI Logger Module
 ==========================
 
-This module provides centralized logging initialization. It sets up both a 
-console handler and a rotating file handler to save log outputs under the 
+This module provides centralized logging initialization. It sets up both a
+console handler and a rotating file handler to save log outputs under the
 configured log directory.
-
 Usage:
     from modules.logger import get_logger
     logger = get_logger(__name__)
@@ -27,6 +26,7 @@ DATE_FORMAT: str = "%Y-%m-%d %H:%M:%S"
 # Global cache of initialized loggers to avoid duplicating handlers
 _loggers = {}
 
+
 def get_logger(name: str, log_level: str = "INFO") -> logging.Logger:
     """
     Get or create a configured logger instance.
@@ -42,7 +42,7 @@ def get_logger(name: str, log_level: str = "INFO") -> logging.Logger:
         return _loggers[name]
 
     logger = logging.getLogger(name)
-    
+
     # Map string level to logging level integer
     numeric_level = getattr(logging, log_level.upper(), logging.INFO)
     logger.setLevel(numeric_level)
@@ -62,7 +62,7 @@ def get_logger(name: str, log_level: str = "INFO") -> logging.Logger:
         log_file_path = os.path.join(DIR_LOGS, "app.log")
         try:
             file_handler = RotatingFileHandler(
-                log_file_path, 
+                log_file_path,
                 maxBytes=5 * 1024 * 1024,  # 5 MB
                 backupCount=3,
                 encoding="utf-8"

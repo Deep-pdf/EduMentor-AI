@@ -12,7 +12,18 @@ import atexit
 from config import config
 from modules.logger import get_logger
 from modules.constants import APP_TITLE, STATE_CHAT_HISTORY, STATE_CURRENT_MODEL
-from modules import UIController, LLMClient, PromptManager
+from modules import (
+    UIController,
+    LLMClient,
+    PromptManager,
+    EmbeddingManager,
+    VectorStoreManager,
+    RAGEngine,
+    ConversationMemory,
+    AIAgent,
+    ToolManager,
+    ToolRegistry,
+)
 
 # Initialize application logger
 logger = get_logger("app", log_level=config.log_level)
@@ -66,6 +77,79 @@ def init_state() -> None:
         st.session_state.llm_client = LLMClient(config.model_name, config.temperature)
         st.session_state.connection_status = "Connecting..."
         st.session_state.connection_error = None
+
+    # 6. RAG Component Pipeline
+    if "embedding_manager" not in st.session_state:
+        logger.info("Main: Initializing EmbeddingManager...")
+        st.session_state.embedding_manager = EmbeddingManager(
+            config.embedding_model_name
+        )
+        # Load the sentence transformer model into memory
+        st.session_state.embedding_manager.load_model()
+
+    if "vector_store_manager" not in st.session_state:
+        logger.info("Main: Initializing VectorStoreManager...")
+        st.session_state.vector_store_manager = VectorStoreManager(
+            config.chroma_db_path, config.collection_name
+        )
+        st.session_state.vector_store_manager.create_database()
+
+    if "rag_engine" not in st.session_state:
+        logger.info("Main: Initializing RAGEngine...")
+        st.session_state.rag_engine = RAGEngine(
+            st.session_state.vector_store_manager, st.session_state.embedding_manager
+        )
+        st.session_state.rag_engine.initialize()
+
+    # 7. Document States
+    if "current_document_name" not in st.session_state:
+        st.session_state.current_document_name = None
+    if "current_document_path" not in st.session_state:
+        st.session_state.current_document_path = None
+    if "current_document_metadata" not in st.session_state:
+        st.session_state.current_document_metadata = None
+
+    # 8. Memory State
+    if "memory" not in st.session_state:
+        st.session_state.memory = ConversationMemory(session_id="default", limit=10)
+
+    # 9. Tool Manager
+    if "tool_manager" not in st.session_state:
+        st.session_state.tool_manager = ToolManager()
+
+    # 10. Tool Registry & Core Tools registration
+    if "tool_registry" not in st.session_state:
+        logger.info("Main: Initializing ToolRegistry and registering core tools...")
+        from modules.tools.tool_factory import ToolFactory
+
+        registry = ToolRegistry()
+
+        # Register Memory Tool
+        registry.register(ToolFactory.create_memory_tool(st.session_state.memory))
+
+        # Register RAG Tool
+        registry.register(ToolFactory.create_rag_tool(st.session_state.rag_engine))
+
+        # Register Search Tool
+        registry.register(ToolFactory.create_search_tool())
+
+        # Register Calculator Tool
+        registry.register(ToolFactory.create_calculator_tool())
+
+        # Register Time Tool
+        registry.register(ToolFactory.create_time_tool())
+
+        st.session_state.tool_registry = registry
+        logger.info("Main: All core tools registered successfully.")
+
+    # 11. Agent Orchestrator
+    if "agent" not in st.session_state:
+        st.session_state.agent = AIAgent(
+            llm_client=st.session_state.llm_client,
+            prompt_manager=st.session_state.prompt_manager,
+            tool_registry=st.session_state.tool_registry,
+        )
+        st.session_state.agent.initialize()
 
 
 def init_llm_connection() -> None:

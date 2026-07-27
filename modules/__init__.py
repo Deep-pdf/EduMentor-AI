@@ -2,8 +2,8 @@
 EduMentor AI Modules Package
 ============================
 
-This package contains all modular abstractions for the application backend 
-and frontend routing. It isolates systems to enforce Separation of Concerns 
+This package contains all modular abstractions for the application backend
+and frontend routing. It isolates systems to enforce Separation of Concerns
 and SOLID development principles.
 
 Exposes:
@@ -29,6 +29,7 @@ from modules.agent import AIAgent
 from modules.pdf_loader import PDFLoader
 from modules.embeddings import EmbeddingManager
 from modules.vector_store import VectorStoreManager
+from modules.tool_registry import ToolRegistry
 
 __all__ = [
     "UIController",
@@ -41,4 +42,5 @@ __all__ = [
     "PDFLoader",
     "EmbeddingManager",
     "VectorStoreManager",
+    "ToolRegistry",
 ]
