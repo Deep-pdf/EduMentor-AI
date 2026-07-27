@@ -3,7 +3,7 @@ EduMentor AI Configuration Module
 =================================
 
 This module handles centralized configuration management for EduMentor AI.
-It loads environment variables from a `.env` file and defines the system's 
+It loads environment variables from a `.env` file and defines the system's
 operational parameters using Python dataclasses.
 All modules should refer to the global `config` instance generated here.
 """
@@ -33,15 +33,23 @@ class AppConfig:
     Centralized configurations object mapping environment parameters.
     Values default to constants if not specified in the environment.
     """
+
     # General Info
     app_name: str = field(default_factory=lambda: os.getenv("APP_NAME", APP_TITLE))
     log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
-    
+    theme: str = field(default_factory=lambda: os.getenv("THEME", "dark"))
+
     # LLM Settings (Groq API)
-    groq_api_key: Optional[str] = field(default_factory=lambda: os.getenv("GROQ_API_KEY"))
-    model_name: str = field(default_factory=lambda: os.getenv("MODEL_NAME", DEFAULT_MODEL))
+    groq_api_key: Optional[str] = field(
+        default_factory=lambda: os.getenv("GROQ_API_KEY")
+    )
+    model_name: str = field(
+        default_factory=lambda: os.getenv("MODEL_NAME", DEFAULT_MODEL)
+    )
     temperature: float = field(
-        default_factory=lambda: float(os.getenv("TEMPERATURE", str(DEFAULT_TEMPERATURE)))
+        default_factory=lambda: float(
+            os.getenv("TEMPERATURE", str(DEFAULT_TEMPERATURE))
+        )
     )
     max_tokens: int = field(
         default_factory=lambda: int(os.getenv("MAX_TOKENS", str(DEFAULT_MAX_TOKENS)))
@@ -49,7 +57,9 @@ class AppConfig:
 
     # Embeddings & Vector Database settings
     embedding_model_name: str = field(
-        default_factory=lambda: os.getenv("EMBEDDINGS_MODEL_NAME", DEFAULT_EMBEDDING_MODEL)
+        default_factory=lambda: os.getenv(
+            "EMBEDDINGS_MODEL_NAME", DEFAULT_EMBEDDING_MODEL
+        )
     )
     chroma_db_path: str = field(
         default_factory=lambda: os.getenv("CHROMA_DB_PATH", DIR_VECTOR_DB)
@@ -62,17 +72,20 @@ class AppConfig:
 
     def validate(self) -> None:
         """
-        Validate application configuration properties and emit logger warnings 
+        Validate application configuration properties and emit logger warnings
         for missing required environments.
         """
         # Import logger here to prevent circular import during initialization
         from modules.logger import get_logger
+
         logger = get_logger("config", log_level=self.log_level)
-        
+
         logger.info("Initializing configuration validation...")
-        
+
         if not self.groq_api_key:
-            logger.warning("GROQ_API_KEY environment variable is not defined. LLM connection will fail in later phases.")
+            logger.warning(
+                "GROQ_API_KEY environment variable is not defined. LLM connection will fail in later phases."
+            )
         else:
             logger.info("GROQ_API_KEY is defined in the configuration.")
 
