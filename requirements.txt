@@ -1,0 +1,26 @@
+# ==============================================================================
+# EduMentor AI Dependencies Configuration
+# ==============================================================================
+
+# Core Web UI
+streamlit>=1.30.0          # Frontend UI rendering, layouts, and session state
+
+# AI & LLM Orchestration
+langchain>=0.1.0           # Framework for agent planning and component integration
+langchain-core>=0.1.0      # Fundamental abstractions (runnables, prompt templates)
+langchain-community>=0.1.0 # Integrations for external systems, memory, and loaders
+langchain-groq>=0.1.0      # Groq cloud API wrapper for LangChain
+
+# Vector Database & Sentence Embeddings
+chromadb>=0.4.0            # Local vector database for semantic chunk retrieval
+sentence-transformers>=2.2.0 # local model execution for generating document embeddings
+pypdf>=4.0.0               # PDF document reading, chunk extraction, and structure parsing
+
+# Utilities
+python-dotenv>=1.0.0       # Parsing configurations from local .env files
+pydantic>=2.0.0            # Schema declarations, data parsing, and validations
+
+# Development & Quality Assurance
+pytest>=7.0.0              # Automated unit and integration testing runner
+black>=23.0.0              # Standardized code formatting compliance
+flake8>=6.0.0              # Static code analysis and style checks
