@@ -543,7 +543,7 @@ class AIAgent:
         else:
             final_response = response
             # Append RAG citations if document matches found
-            if plan["tool_to_use"] == "RAG Tool" and retrieved_docs:
+            if "RAG Tool" in plan["tools_to_execute"] and retrieved_docs:
                 pages = sorted(
                     list(
                         set(
