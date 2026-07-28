@@ -43,7 +43,19 @@ class CalculatorTool(BaseTool):
         """
         Return capabilities categories.
         """
-        return ["Mathematics", "Arithmetic", "Percentage Calculation", "Powers", "Roots"]
+        return [
+            "Mathematics",
+            "Arithmetic",
+            "Percentage Calculation",
+            "Powers",
+            "Roots",
+        ]
+
+    def supported_intents(self) -> List[str]:
+        """
+        Return the list of intents supported by this tool.
+        """
+        return ["Mathematics"]
 
     def execute(self, params: Dict[str, Any]) -> Any:
         """
@@ -60,19 +72,33 @@ class CalculatorTool(BaseTool):
         if not expression:
             return "Empty mathematical expression."
 
-        logger.info("Tool Selected: Calculator Tool chosen for expression: %s", expression)
+        logger.info(
+            "Tool Selected: Calculator Tool chosen for expression: %s", expression
+        )
         import time
 
         start_time = time.time()
 
         try:
             # 1. Extract words and filter out non-math words before removing spaces
-            allowed_funcs = {"sqrt", "pow", "sin", "cos", "tan", "log", "pi", "e", "abs"}
+            allowed_funcs = {
+                "sqrt",
+                "pow",
+                "sin",
+                "cos",
+                "tan",
+                "log",
+                "pi",
+                "e",
+                "abs",
+            }
             words = re.findall(r"[a-zA-Z]+", expression)
             clean_expr = expression
             for word in words:
                 if word.lower() not in allowed_funcs:
-                    clean_expr = re.sub(rf"\b{word}\b", "", clean_expr, flags=re.IGNORECASE)
+                    clean_expr = re.sub(
+                        rf"\b{word}\b", "", clean_expr, flags=re.IGNORECASE
+                    )
 
             # 2. Clean punctuation and spaces
             expr_clean = (
@@ -105,15 +131,22 @@ class CalculatorTool(BaseTool):
             # Safe execution using empty builtins to block arbitrary method calling
             result = eval(sanitized, {"__builtins__": {}}, eval_env)
             duration = time.time() - start_time
-            logger.info("Tool Executed: Calculator successfully solved expression. Duration: %.2f seconds", duration)
-            logger.info("Tool Returned Data: Mathematical result returned successfully.")
+            logger.info(
+                "Tool Executed: Calculator successfully solved expression. Duration: %.2f seconds",
+                duration,
+            )
+            logger.info(
+                "Tool Returned Data: Mathematical result returned successfully."
+            )
             return f"Result: {result}"
 
         except ZeroDivisionError:
             logger.error("Tool Failed: Division by zero occurred.")
             return "Error: Division by zero is undefined."
         except Exception as e:
-            logger.error("Tool Failed: Calculator evaluation error: %s", str(e), exc_info=True)
+            logger.error(
+                "Tool Failed: Calculator evaluation error: %s", str(e), exc_info=True
+            )
             return f"Error evaluating expression '{expression}': invalid math syntax."
 
     def status(self) -> Dict[str, Any]:

@@ -54,6 +54,12 @@ class MemoryTool(BaseTool):
         """
         return ["Conversation Follow-up", "History Retrieval", "Clear History"]
 
+    def supported_intents(self) -> List[str]:
+        """
+        Return the list of intents supported by this tool.
+        """
+        return ["Conversation Follow-up"]
+
     def execute(self, params: Dict[str, Any]) -> Any:
         """
         Perform conversational memory actions.
@@ -90,11 +96,16 @@ class MemoryTool(BaseTool):
                 result = "Success"
 
             duration = time.time() - start_time
-            logger.info("Tool Executed: Memory Tool successfully completed. Duration: %.2f seconds", duration)
+            logger.info(
+                "Tool Executed: Memory Tool successfully completed. Duration: %.2f seconds",
+                duration,
+            )
             logger.info("Tool Returned Data: Memory operation returned successfully.")
             return result
         except Exception as e:
-            logger.error("Tool Failed: Memory Tool execution failed: %s", str(e), exc_info=True)
+            logger.error(
+                "Tool Failed: Memory Tool execution failed: %s", str(e), exc_info=True
+            )
             raise e
 
     def status(self) -> Dict[str, Any]:

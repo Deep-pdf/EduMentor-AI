@@ -40,13 +40,15 @@ class ToolRegistry:
         try:
             tool.initialize()
             self._tools[tool_name] = tool
-            logger.info("Tool Registered: Successfully loaded and registered '%s'.", tool_name)
+            logger.info(
+                "Tool Registered: Successfully loaded and registered '%s'.", tool_name
+            )
         except Exception as e:
             logger.error(
                 "Tool Failed: Registration initialization failed for '%s': %s",
                 tool_name,
                 str(e),
-                exc_info=True
+                exc_info=True,
             )
             raise RuntimeError(f"tool_init_failed_{tool_name}")
 
@@ -62,7 +64,11 @@ class ToolRegistry:
                 self._tools[name].shutdown()
                 logger.info("Tool Registry: Removed tool '%s'.", name)
             except Exception as e:
-                logger.error("Tool Registry: Shutdown failed for '%s' during removal: %s", name, str(e))
+                logger.error(
+                    "Tool Registry: Shutdown failed for '%s' during removal: %s",
+                    name,
+                    str(e),
+                )
             del self._tools[name]
 
     def get_tool(self, name: str) -> Optional[BaseTool]:
@@ -85,6 +91,34 @@ class ToolRegistry:
             List[str]: List of active tool names.
         """
         return list(self._tools.keys())
+
+    def resolve_tool_by_intent(self, intent: str) -> Optional[BaseTool]:
+        """
+        Resolve the first registered tool that supports the given intent.
+
+        Args:
+            intent (str): Intent tag to search for.
+
+        Returns:
+            Optional[BaseTool]: Tool instance if resolved, else None.
+        """
+        for tool in self._tools.values():
+            try:
+                if intent in tool.supported_intents():
+                    logger.info(
+                        "Tool Registry: Resolved intent '%s' to tool '%s'.",
+                        intent,
+                        tool.name(),
+                    )
+                    return tool
+            except Exception as e:
+                logger.error(
+                    "Tool Registry: Error checking supported intents on tool '%s': %s",
+                    tool.name(),
+                    str(e),
+                )
+        logger.warning("Tool Registry: No tool registered for intent '%s'.", intent)
+        return None
 
     def discover_capabilities(self) -> Dict[str, List[str]]:
         """

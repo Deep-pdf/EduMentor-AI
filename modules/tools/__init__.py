@@ -12,6 +12,8 @@ from modules.tools.memory_tool import MemoryTool
 from modules.tools.search_tool import SearchTool
 from modules.tools.calculator_tool import CalculatorTool
 from modules.tools.time_tool import TimeTool
+from modules.tools.study_tool import StudyTool
+from modules.tools.pdf_stats_tool import PDFStatisticsTool
 from modules.tools.tool_factory import ToolFactory
 from modules.tools.tool_manager import ToolManager
 
@@ -22,6 +24,8 @@ __all__ = [
     "SearchTool",
     "CalculatorTool",
     "TimeTool",
+    "StudyTool",
+    "PDFStatisticsTool",
     "ToolFactory",
     "ToolManager",
 ]

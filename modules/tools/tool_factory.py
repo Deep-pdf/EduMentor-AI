@@ -13,6 +13,8 @@ from modules.tools.calculator_tool import CalculatorTool
 from modules.tools.time_tool import TimeTool
 from modules.tools.rag_tool import RAGTool
 from modules.tools.memory_tool import MemoryTool
+from modules.tools.study_tool import StudyTool
+from modules.tools.pdf_stats_tool import PDFStatisticsTool
 
 logger = get_logger(__name__)
 
@@ -78,3 +80,23 @@ class ToolFactory:
             MemoryTool: Instantiated MemoryTool wrapper.
         """
         return MemoryTool(memory)
+
+    @staticmethod
+    def create_study_tool() -> StudyTool:
+        """
+        Create and return a StudyTool instance.
+
+        Returns:
+            StudyTool: Instantiated StudyTool.
+        """
+        return StudyTool()
+
+    @staticmethod
+    def create_pdf_stats_tool() -> PDFStatisticsTool:
+        """
+        Create and return a PDFStatisticsTool instance.
+
+        Returns:
+            PDFStatisticsTool: Instantiated PDFStatisticsTool.
+        """
+        return PDFStatisticsTool()

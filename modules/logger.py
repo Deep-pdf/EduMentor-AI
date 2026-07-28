@@ -65,7 +65,7 @@ def get_logger(name: str, log_level: str = "INFO") -> logging.Logger:
                 log_file_path,
                 maxBytes=5 * 1024 * 1024,  # 5 MB
                 backupCount=3,
-                encoding="utf-8"
+                encoding="utf-8",
             )
             file_handler.setFormatter(formatter)
             file_handler.setLevel(numeric_level)

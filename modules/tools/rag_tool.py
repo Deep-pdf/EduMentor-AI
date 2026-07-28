@@ -53,6 +53,18 @@ class RAGTool(BaseTool):
         """
         return ["Document Question", "Syllabus Retrieval", "Academic Context Lookup"]
 
+    def supported_intents(self) -> List[str]:
+        """
+        Return the list of intents supported by this tool.
+        """
+        return [
+            "Document Question",
+            "Generate Quiz",
+            "Generate Flashcards",
+            "Generate Revision Notes",
+            "Summarize Document",
+        ]
+
     def execute(self, params: Dict[str, Any]) -> Any:
         """
         Query RAGEngine for semantic context block.
@@ -74,11 +86,16 @@ class RAGTool(BaseTool):
         try:
             context, docs = self.rag_engine.generate_context(query)
             duration = time.time() - start_time
-            logger.info("Tool Executed: RAG Tool successfully executed. Duration: %.2f seconds", duration)
+            logger.info(
+                "Tool Executed: RAG Tool successfully executed. Duration: %.2f seconds",
+                duration,
+            )
             logger.info("Tool Returned Data: Context block returned successfully.")
             return {"context": context, "retrieved_docs": docs}
         except Exception as e:
-            logger.error("Tool Failed: RAG Tool execution failed: %s", str(e), exc_info=True)
+            logger.error(
+                "Tool Failed: RAG Tool execution failed: %s", str(e), exc_info=True
+            )
             raise e
 
     def status(self) -> Dict[str, Any]:

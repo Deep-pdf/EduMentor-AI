@@ -131,28 +131,120 @@ class AIAgent:
             logger.info("Agent Decision: Intent classified as '%s'.", intent)
             return intent
 
-        # 4. Current Events matching (Web Search - checked only if enabled)
+        # 4. PDF Statistics matching
+        pdf_stats_keywords = [
+            "pdf statistics",
+            "pdf stats",
+            "page count",
+            "word count",
+            "reading time",
+            "number of paragraphs",
+            "number of headings",
+            "top keywords",
+            "document title",
+            "metadata",
+            "tell me about this pdf",
+            "analyze pdf",
+            "pdf info",
+            "file size",
+        ]
+        if any(k in user_input_lower for k in pdf_stats_keywords):
+            intent = "PDF Statistics"
+            logger.info("Agent Decision: Intent classified as '%s'.", intent)
+            return intent
+
+        # 5. Study tool capabilities matching
+        # Generate Quiz
+        quiz_keywords = [
+            "quiz",
+            "mcq",
+            "multiple choice",
+            "practice questions",
+            "practice question",
+            "interview questions",
+            "interview question",
+            "practice test",
+            "exam prep",
+        ]
+        if any(k in user_input_lower for k in quiz_keywords):
+            intent = "Generate Quiz"
+            logger.info("Agent Decision: Intent classified as '%s'.", intent)
+            return intent
+
+        # Generate Flashcards
+        flashcard_keywords = ["flashcard", "flash card", "flashcards", "flash cards"]
+        if any(k in user_input_lower for k in flashcard_keywords):
+            intent = "Generate Flashcards"
+            logger.info("Agent Decision: Intent classified as '%s'.", intent)
+            return intent
+
+        # Generate Revision Notes
+        notes_keywords = [
+            "revision notes",
+            "study notes",
+            "notes for",
+            "notes of",
+            "make notes",
+        ]
+        if any(k in user_input_lower for k in notes_keywords):
+            intent = "Generate Revision Notes"
+            logger.info("Agent Decision: Intent classified as '%s'.", intent)
+            return intent
+
+        # Summarize Document
+        summary_keywords = [
+            "summarize document",
+            "summarize pdf",
+            "summarize the document",
+            "summarize chapter",
+            "summary of the document",
+            "document summary",
+            "chapter summary",
+            "eli5",
+            "explain like i'm five",
+        ]
+        if any(k in user_input_lower for k in summary_keywords) or (
+            user_input_lower == "summarize" or user_input_lower == "summary"
+        ):
+            intent = "Summarize Document"
+            logger.info("Agent Decision: Intent classified as '%s'.", intent)
+            return intent
+
+        # 6. Latest News / Current Information (Web Search)
         web_search_enabled = st.session_state.get("web_search_enabled", True)
         if web_search_enabled:
-            search_keywords = [
+            news_keywords = [
                 "latest news",
-                "current events",
                 "news about",
                 "recent news",
                 "what happened today",
-                "weather in",
-                "latest developments in",
+                "current events",
             ]
             if (
-                any(sk in user_input_lower for sk in search_keywords)
+                any(k in user_input_lower for k in news_keywords)
                 or "latest" in user_input_lower
                 or "recent" in user_input_lower
             ):
-                intent = "Current Events"
+                intent = "Latest News"
                 logger.info("Agent Decision: Intent classified as '%s'.", intent)
                 return intent
 
-        # 5. Follow-up matching (referencing conversation memory)
+            info_keywords = [
+                "weather in",
+                "current price of",
+                "recent developments in",
+                "what is the current",
+                "current status",
+            ]
+            if (
+                any(k in user_input_lower for k in info_keywords)
+                or "current" in user_input_lower
+            ):
+                intent = "Current Information"
+                logger.info("Agent Decision: Intent classified as '%s'.", intent)
+                return intent
+
+        # 7. Follow-up matching (referencing conversation memory)
         follow_ups = [
             "summarize what we discussed",
             "summarize what you just explained",
@@ -179,7 +271,7 @@ class AIAgent:
             logger.info("Agent Decision: Intent classified as '%s'.", intent)
             return intent
 
-        # 6. Document Question matching (RAG)
+        # 8. Document Question matching (RAG)
         doc_loaded = st.session_state.get("current_document_path") is not None
         if doc_loaded and self.tool_registry.check_availability("RAG Tool"):
             doc_keywords = [
@@ -197,7 +289,6 @@ class AIAgent:
                 "this book",
                 "here",
                 "the text",
-                "summarize the document",
                 "read the document",
             ]
             if any(k in user_input_lower for k in doc_keywords):
@@ -205,14 +296,14 @@ class AIAgent:
                 logger.info("Agent Decision: Intent classified as '%s'.", intent)
                 return intent
 
-        # 7. Default general question answering
+        # 9. Default general question answering
         intent = "General Question"
         logger.info("Agent Decision: Intent classified as '%s'.", intent)
         return intent
 
     def build_execution_plan(self, intent: str) -> Dict[str, Any]:
         """
-        Compile execution plan specifying steps and target tool dispatching.
+        Compile execution plan specifying steps and target tools based on intent.
 
         Args:
             intent (str): Intent tag.
@@ -222,37 +313,68 @@ class AIAgent:
         """
         plan = {
             "intent": intent,
-            "tool_to_use": None,
+            "tools_to_execute": [],
             "direct_tool_return": False,
             "steps": [],
         }
 
+        # Handle direct tool returns first (backwards compatibility)
+        if intent == "Time Request" and self.tool_registry.get_tool("Time Tool"):
+            plan["tools_to_execute"] = ["Time Tool"]
+            plan["direct_tool_return"] = True
+            plan["steps"] = ["execute_tool"]
+            return plan
+        if intent == "Mathematics" and self.tool_registry.get_tool("Calculator Tool"):
+            plan["tools_to_execute"] = ["Calculator Tool"]
+            plan["direct_tool_return"] = True
+            plan["steps"] = ["execute_tool"]
+            return plan
+
+        # Resolve primary tool by intent
+        tool = self.tool_registry.resolve_tool_by_intent(intent)
+
+        # Build execution sequence based on intent
         if intent == "Greeting":
             plan["steps"] = ["call_llm"]
-        elif intent == "Time Request":
-            plan["tool_to_use"] = "Time Tool"
-            plan["direct_tool_return"] = True
-            plan["steps"] = ["execute_tool"]
-        elif intent == "Mathematics":
-            plan["tool_to_use"] = "Calculator Tool"
-            plan["direct_tool_return"] = True
-            plan["steps"] = ["execute_tool"]
-        elif intent == "Current Events":
-            plan["tool_to_use"] = "Search Tool"
-            plan["steps"] = ["execute_tool", "call_llm"]
-        elif intent == "Document Question":
-            plan["tool_to_use"] = "RAG Tool"
-            plan["steps"] = ["execute_tool", "call_llm"]
         elif intent == "Conversation Follow-up":
             plan["steps"] = ["call_llm"]
+        elif intent == "General Question":
+            plan["steps"] = ["call_llm"]
+        elif intent in [
+            "Generate Quiz",
+            "Generate Flashcards",
+            "Generate Revision Notes",
+        ]:
+            plan["tools_to_execute"] = []
+            if self.tool_registry.get_tool("Study Tool"):
+                plan["tools_to_execute"].append("Study Tool")
+            if self.tool_registry.get_tool("RAG Tool"):
+                plan["tools_to_execute"].append("RAG Tool")
+            plan["steps"] = ["execute_tools", "call_llm"]
+        elif intent == "Summarize Document":
+            plan["tools_to_execute"] = []
+            if self.tool_registry.get_tool("RAG Tool"):
+                plan["tools_to_execute"].append("RAG Tool")
+            if self.tool_registry.get_tool("Study Tool"):
+                plan["tools_to_execute"].append("Study Tool")
+            plan["steps"] = ["execute_tools", "call_llm"]
+        elif intent in ["Latest News", "Current Information"]:
+            if tool:
+                plan["tools_to_execute"] = [tool.name()]
+            plan["steps"] = ["execute_tools", "call_llm"]
+        elif intent == "PDF Statistics":
+            if tool:
+                plan["tools_to_execute"] = [tool.name()]
+            plan["steps"] = ["execute_tools", "call_llm"]
         else:
+            # Fallback to direct LLM call
             plan["steps"] = ["call_llm"]
 
         logger.info(
-            "Execution Plan Created: Plan for intent '%s': steps=%s, tool=%s",
+            "Execution Plan Created: Plan for intent '%s': steps=%s, tools=%s",
             intent,
             plan["steps"],
-            plan["tool_to_use"],
+            plan["tools_to_execute"],
         )
         return plan
 
@@ -297,54 +419,100 @@ class AIAgent:
         system_instruction = ""
         user_msg = user_input
         response = ""
+        study_output = None
 
         # 4. Run plan steps
         for step in plan["steps"]:
             logger.info("AIAgent: Running execution step '%s'", step)
 
             if step == "execute_tool":
-                tool_name = plan["tool_to_use"]
+                # Backwards compatibility execute single direct return tool
+                tool_name = plan["tools_to_execute"][0]
                 tool = self.tool_registry.get_tool(tool_name)
                 if tool:
                     params = {"query": user_input, "expression": user_input}
                     tool_output = tool.execute(params)
-
-                    if tool_name == "RAG Tool":
-                        context_block = tool_output.get("context", "")
-                        retrieved_docs = tool_output.get("retrieved_docs", [])
-                    elif tool_name == "Search Tool":
-                        context_block = tool_output
                 else:
                     logger.warning(
-                        "AIAgent: Selected tool '%s' is not registered.", tool_name
+                        "AIAgent: Direct tool '%s' is not registered.", tool_name
                     )
                     tool_output = f"Error: Tool '{tool_name}' is not registered."
+
+            elif step == "execute_tools":
+                # Execute tools in the plan
+                for tool_name in plan["tools_to_execute"]:
+                    tool = self.tool_registry.get_tool(tool_name)
+                    if not tool:
+                        logger.warning(
+                            "AIAgent: Configured tool '%s' is not registered.",
+                            tool_name,
+                        )
+                        continue
+
+                    # Execute and harvest results
+                    if tool_name == "RAG Tool":
+                        rag_res = tool.execute({"query": user_input})
+                        context_block = rag_res.get("context", "")
+                        retrieved_docs = rag_res.get("retrieved_docs", [])
+                    elif tool_name == "Study Tool":
+                        study_output = tool.execute(
+                            {"query": user_input, "intent": intent}
+                        )
+                    elif tool_name == "Search Tool":
+                        context_block = tool.execute({"query": user_input})
+                    elif tool_name == "PDF Statistics Tool":
+                        context_block = tool.execute({})
 
             elif step == "call_llm":
                 recent_history = []
                 if memory_tool:
                     recent_history = memory_tool.execute({"action": "load_recent"})[:-1]
 
-                # Compile appropriate prompt payloads based on context resource used
-                if plan["tool_to_use"] == "RAG Tool":
-                    prompt_payload = self.prompt_manager.build_rag_prompt_with_history(
-                        user_input, context_block, recent_history
+                # Combine study instructions with user question if Study Tool was run
+                if study_output:
+                    user_msg = (
+                        f"{user_input}\n\n"
+                        f"--- STUDY TASK INSTRUCTIONS ---\n"
+                        f"Task Type: {study_output.get('task_type')}\n"
+                        f"Instructions: {study_output.get('prompt_instructions')}\n"
+                        f"Expected Output Format:\n{study_output.get('expected_format')}\n"
+                        f"-------------------------------"
                     )
-                elif plan["tool_to_use"] == "Search Tool":
+
+                # Compile appropriate prompt payloads based on context resource used
+                if "RAG Tool" in plan["tools_to_execute"] or intent in [
+                    "Generate Quiz",
+                    "Generate Flashcards",
+                    "Generate Revision Notes",
+                    "Summarize Document",
+                    "Document Question",
+                ]:
+                    prompt_payload = self.prompt_manager.build_rag_prompt_with_history(
+                        user_msg, context_block, recent_history
+                    )
+                elif "Search Tool" in plan["tools_to_execute"] or intent in [
+                    "Latest News",
+                    "Current Information",
+                ]:
                     prompt_payload = (
                         self.prompt_manager.build_search_prompt_with_history(
-                            user_input, context_block, recent_history
+                            user_msg, context_block, recent_history
                         )
+                    )
+                elif "PDF Statistics Tool" in plan["tools_to_execute"]:
+                    # Format stats socratically using RAG prompt context wrapper
+                    prompt_payload = self.prompt_manager.build_rag_prompt_with_history(
+                        user_msg, context_block, recent_history
                     )
                 else:
                     prompt_payload = (
                         self.prompt_manager.build_tutor_prompt_with_history(
-                            user_input, recent_history
+                            user_msg, recent_history
                         )
                     )
 
                 system_instruction = prompt_payload["system"]
-                user_msg = prompt_payload["user"]
+                user_question_final = prompt_payload["user"]
 
                 # Append Think Mode instructions if enabled in session state
                 if st.session_state.get("think_mode_enabled", False):
@@ -358,7 +526,8 @@ class AIAgent:
 
                 try:
                     response = self.llm_client.generate_response(
-                        system_instruction=system_instruction, user_question=user_msg
+                        system_instruction=system_instruction,
+                        user_question=user_question_final,
                     )
                 except Exception as e:
                     logger.error(

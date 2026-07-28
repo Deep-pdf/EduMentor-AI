@@ -231,7 +231,9 @@ class PromptManager:
                 f"--------------------------------------"
             )
 
-        system_content = f"{self.get_system_prompt()}\n\n{self.get_tutor_prompt()}{history_context}"
+        system_content = (
+            f"{self.get_system_prompt()}\n\n{self.get_tutor_prompt()}{history_context}"
+        )
         return {"system": system_content, "user": user_question}
 
     def build_rag_prompt_with_history(

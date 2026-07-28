@@ -37,7 +37,11 @@ class ConversationMemory:
         if self.state_key not in st.session_state:
             st.session_state[self.state_key] = []
 
-        logger.info("ConversationMemory created for session: %s (limit: %d turns)", session_id, limit)
+        logger.info(
+            "ConversationMemory created for session: %s (limit: %d turns)",
+            session_id,
+            limit,
+        )
 
     def add(self, role: str, content: str) -> None:
         """
@@ -51,13 +55,18 @@ class ConversationMemory:
         messages = st.session_state[self.state_key]
 
         # Append new message node with order and timestamp metadata
-        messages.append({
-            "role": role,
-            "content": content,
-            "timestamp": time.time(),
-            "order": len(messages)
-        })
-        logger.info("ConversationMemory: Saved successfully. Current queue length: %d", len(messages))
+        messages.append(
+            {
+                "role": role,
+                "content": content,
+                "timestamp": time.time(),
+                "order": len(messages),
+            }
+        )
+        logger.info(
+            "ConversationMemory: Saved successfully. Current queue length: %d",
+            len(messages),
+        )
 
     def load(self) -> List[Dict[str, Any]]:
         """
@@ -91,7 +100,9 @@ class ConversationMemory:
         """
         Reset memory logs and delete current session conversations.
         """
-        logger.info("Memory Saved: Clearing memory cache for session: %s", self.session_id)
+        logger.info(
+            "Memory Saved: Clearing memory cache for session: %s", self.session_id
+        )
         st.session_state[self.state_key] = []
         logger.info("ConversationMemory: Memory cache wiped.")
 

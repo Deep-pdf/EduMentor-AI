@@ -54,6 +54,16 @@ class BaseTool(ABC):
         pass
 
     @abstractmethod
+    def supported_intents(self) -> List[str]:
+        """
+        Return the list of intents supported by this tool.
+
+        Returns:
+            List[str]: List of intent keywords.
+        """
+        pass
+
+    @abstractmethod
     def execute(self, params: Dict[str, Any]) -> Any:
         """
         Perform the business logic associated with the tool action.

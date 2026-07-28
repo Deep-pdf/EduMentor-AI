@@ -139,6 +139,12 @@ def init_state() -> None:
         # Register Time Tool
         registry.register(ToolFactory.create_time_tool())
 
+        # Register Study Tool
+        registry.register(ToolFactory.create_study_tool())
+
+        # Register PDF Statistics Tool
+        registry.register(ToolFactory.create_pdf_stats_tool())
+
         st.session_state.tool_registry = registry
         logger.info("Main: All core tools registered successfully.")
 

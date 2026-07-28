@@ -36,13 +36,21 @@ class TimeTool(BaseTool):
         """
         Return description of TimeTool.
         """
-        return "Retrieves current date, time, timezone, and day of week deterministically."
+        return (
+            "Retrieves current date, time, timezone, and day of week deterministically."
+        )
 
     def capabilities(self) -> List[str]:
         """
         Return capabilities categories.
         """
         return ["Time Request", "Current Date", "Current Time", "Day of Week"]
+
+    def supported_intents(self) -> List[str]:
+        """
+        Return the list of intents supported by this tool.
+        """
+        return ["Time Request"]
 
     def execute(self, params: Dict[str, Any]) -> Any:
         """
@@ -72,7 +80,10 @@ class TimeTool(BaseTool):
                 f"Day of Week: {day_str}"
             )
             duration = time.time() - start_time
-            logger.info("Tool Executed: Time Tool completed execution. Duration: %.2f seconds", duration)
+            logger.info(
+                "Tool Executed: Time Tool completed execution. Duration: %.2f seconds",
+                duration,
+            )
             logger.info("Tool Returned Data: Deterministic timestamp returned.")
             return result
         except Exception as e:

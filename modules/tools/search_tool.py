@@ -57,6 +57,12 @@ class SearchTool(BaseTool):
         """
         return ["Current Events", "Latest News", "General Search", "Information Lookup"]
 
+    def supported_intents(self) -> List[str]:
+        """
+        Return the list of intents supported by this tool.
+        """
+        return ["Latest News", "Current Information"]
+
     def execute(self, params: Dict[str, Any]) -> Any:
         """
         Query DuckDuckGo for the user prompt.
@@ -83,7 +89,10 @@ class SearchTool(BaseTool):
                 results = [r for r in ddgs.text(query, max_results=self.max_results)]
 
             duration = time.time() - start_time
-            logger.info("Tool Executed: Search Tool successfully completed. Duration: %.2f seconds", duration)
+            logger.info(
+                "Tool Executed: Search Tool successfully completed. Duration: %.2f seconds",
+                duration,
+            )
 
             if not results:
                 logger.info("Tool Returned Data: No search results returned.")
@@ -94,14 +103,20 @@ class SearchTool(BaseTool):
                 title = r.get("title", "No Title")
                 href = r.get("href", "No Link")
                 body = r.get("body", "No description available.")
-                formatted_results.append(f"[{idx + 1}] Title: {title}\nLink: {href}\nContent: {body}")
+                formatted_results.append(
+                    f"[{idx + 1}] Title: {title}\nLink: {href}\nContent: {body}"
+                )
 
             output = "\n\n---\n\n".join(formatted_results)
-            logger.info("Tool Returned Data: Formatted search text returned successfully.")
+            logger.info(
+                "Tool Returned Data: Formatted search text returned successfully."
+            )
             return output
 
         except Exception as e:
-            logger.error("Tool Failed: Search Tool execution failed: %s", str(e), exc_info=True)
+            logger.error(
+                "Tool Failed: Search Tool execution failed: %s", str(e), exc_info=True
+            )
             return f"Web search failed due to: {str(e)}"
 
     def status(self) -> Dict[str, Any]:

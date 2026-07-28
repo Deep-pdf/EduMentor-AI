@@ -226,9 +226,7 @@ def test_agent_intent_classification() -> None:
     assert agent.analyze_request("why?") == "Conversation Follow-up"
 
     # Test General Conversation
-    assert (
-        agent.analyze_request("How does photosynthesis work?") == "General Question"
-    )
+    assert agent.analyze_request("How does photosynthesis work?") == "General Question"
 
     # Test Document Question (RAG) when a document path is active in session state
     st.session_state.current_document_path = "data/uploads/syllabus.pdf"
@@ -388,3 +386,65 @@ def test_agent_with_tools() -> None:
     assert len(history) == 4  # 2 turns * 2 = 4 messages
     assert history[0]["content"] == "What is 100 * 5?"
     assert "Result: 500" in history[1]["content"]
+
+
+def test_study_tool() -> None:
+    """
+    Test StudyTool output structure and prompt instructions mapping.
+    """
+    from modules.tools.study_tool import StudyTool
+
+    tool = StudyTool()
+    tool.initialize()
+
+    # Test MCQs
+    res_mcq = tool.execute(
+        {"query": "make some mcq questions", "intent": "Generate Quiz"}
+    )
+    assert res_mcq["task_type"] == "Generate MCQs"
+    assert "multiple-choice" in res_mcq["prompt_instructions"].lower()
+
+    # Test Notes
+    res_notes = tool.execute(
+        {"query": "create revision notes", "intent": "Generate Revision Notes"}
+    )
+    assert res_notes["task_type"] == "Generate Revision Notes"
+    assert "revision notes" in res_notes["prompt_instructions"].lower()
+
+
+def test_pdf_stats_tool() -> None:
+    """
+    Test PDFStatisticsTool returns fallback error message if no file is present.
+    """
+    from modules.tools.pdf_stats_tool import PDFStatisticsTool
+
+    tool = PDFStatisticsTool()
+    tool.initialize()
+    res = tool.execute({"file_path": "non_existent.pdf"})
+    assert "Error:" in res
+
+
+def test_agent_modular_intent_routing() -> None:
+    """
+    Test rule-based intent analyzer matching new Phase 5 target intents.
+    """
+    from modules.agent import AIAgent
+    from modules.tool_registry import ToolRegistry
+    from modules.prompts import PromptManager
+
+    pm = PromptManager()
+    registry = ToolRegistry()
+    agent = AIAgent(llm_client=None, prompt_manager=pm, tool_registry=registry)
+
+    # Test new intents
+    assert agent.analyze_request("show me some flashcards") == "Generate Flashcards"
+    assert (
+        agent.analyze_request("make revision notes for biology")
+        == "Generate Revision Notes"
+    )
+    assert agent.analyze_request("can you give me a quiz?") == "Generate Quiz"
+    assert agent.analyze_request("summarize chapter 2") == "Summarize Document"
+    assert (
+        agent.analyze_request("tell me about the page count and word count of the pdf")
+        == "PDF Statistics"
+    )

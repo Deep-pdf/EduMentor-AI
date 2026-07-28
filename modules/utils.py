@@ -68,10 +68,7 @@ class FormattingUtils:
         Format message dictionaries to comply with LLM history specifications.
         """
         logger.debug("Formatting message for role: %s", role)
-        return {
-            "role": role,
-            "content": content
-        }
+        return {"role": role, "content": content}
 
 
 class SystemUtils:
