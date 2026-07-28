@@ -58,7 +58,7 @@ class AIAgent:
 
         # 0. Force Web Search user override
         if st.session_state.get("force_web_search", False):
-            intent = "Current Events"
+            intent = "Latest News"
             logger.info(
                 "Agent Decision: Intent classified as '%s' (FORCED by user).", intent
             )
@@ -219,6 +219,12 @@ class AIAgent:
                 "recent news",
                 "what happened today",
                 "current events",
+                "search the web",
+                "search online",
+                "google",
+                "lookup",
+                "find online",
+                "on the internet",
             ]
             if (
                 any(k in user_input_lower for k in news_keywords)
