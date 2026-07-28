@@ -37,7 +37,10 @@ class PromptManager:
         "to a problem unless they are completely stuck.\n"
         "4. Avoid giving harmful, inappropriate, or non-educational advice.\n"
         "5. Structure your responses professionally. Use Markdown formatting (such as bullet "
-        "points, headers, bold text, and blockquotes) to make answers highly readable and structured."
+        "points, headers, bold text, and blockquotes) to make answers highly readable and structured.\n"
+        "6. Never generate, hallucinate, or recommend direct YouTube video URLs/links (e.g. watch?v=...) "
+        "since you cannot verify their status. Instead, recommend specific search query terms the "
+        "student can enter into YouTube to find relevant videos."
     )
 
     # Centralized Greeting Prompt
