@@ -369,6 +369,10 @@ class AIAgent:
             if tool:
                 plan["tools_to_execute"] = [tool.name()]
             plan["steps"] = ["execute_tools", "call_llm"]
+        elif intent == "Document Question":
+            if tool:
+                plan["tools_to_execute"] = [tool.name()]
+            plan["steps"] = ["execute_tools", "call_llm"]
         else:
             # Fallback to direct LLM call
             plan["steps"] = ["call_llm"]
