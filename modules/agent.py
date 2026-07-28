@@ -296,9 +296,12 @@ class AIAgent:
                 logger.info("Agent Decision: Intent classified as '%s'.", intent)
                 return intent
 
-        # 9. Default general question answering
-        intent = "General Question"
-        logger.info("Agent Decision: Intent classified as '%s'.", intent)
+        # 9. Default general question answering (fallback to Document Question if doc loaded)
+        if doc_loaded and self.tool_registry.check_availability("RAG Tool"):
+            intent = "Document Question"
+        else:
+            intent = "General Question"
+        logger.info("Agent Decision: Intent classified as '%s' (fallback).", intent)
         return intent
 
     def build_execution_plan(self, intent: str) -> Dict[str, Any]:
