@@ -346,6 +346,16 @@ class AIAgent:
                 system_instruction = prompt_payload["system"]
                 user_msg = prompt_payload["user"]
 
+                # Append Think Mode instructions if enabled in session state
+                if st.session_state.get("think_mode_enabled", False):
+                    system_instruction += (
+                        "\n\nCRITICAL THINK MODE INSTRUCTION:\n"
+                        "You MUST start your response with a detailed, step-by-step reasoning analysis enclosed inside "
+                        "<thinking> ... </thinking> XML tags. Detail your understanding of the user's question, "
+                        "the pedagogical goal, and how you will guide them Socrates-style. After the closing "
+                        "</thinking> tag, write your final response to the student."
+                    )
+
                 try:
                     response = self.llm_client.generate_response(
                         system_instruction=system_instruction, user_question=user_msg

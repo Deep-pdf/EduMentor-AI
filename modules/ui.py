@@ -292,8 +292,8 @@ class UIController:
 
             st.markdown("---")
 
-            # Web Search Options
-            st.markdown("### 🔍 Search Options")
+            # Web Search & Think Mode Options
+            st.markdown("### 🔍 Agent Settings")
             st.checkbox(
                 "Enable Web Search",
                 key="web_search_enabled",
@@ -305,6 +305,12 @@ class UIController:
                 key="force_web_search",
                 value=False,
                 help="Force the agent to query the web search tool for the next question.",
+            )
+            st.checkbox(
+                "🧠 Think Mode",
+                key="think_mode_enabled",
+                value=False,
+                help="Instructs the AI agent to perform deep reasoning before formulating its response.",
             )
 
             st.markdown("---")
@@ -375,7 +381,24 @@ class UIController:
             # Render historical messages
             for message in chat_history:
                 with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
+                    content = message["content"]
+                    if "<thinking>" in content and "</thinking>" in content:
+                        parts = content.split("</thinking>", 1)
+                        thinking_text = parts[0].replace("<thinking>", "").strip()
+                        answer_text = parts[1].strip()
+                        with st.expander("🧠 Tutor's Thought Process", expanded=False):
+                            st.markdown(thinking_text)
+                        st.markdown(answer_text)
+                    elif "<thinking>" in content:
+                        parts = content.split("<thinking>", 1)
+                        pre_thinking = parts[0].strip()
+                        if pre_thinking:
+                            st.markdown(pre_thinking)
+                        thinking_text = parts[1].strip()
+                        with st.expander("🧠 Tutor's Thought Process", expanded=True):
+                            st.markdown(thinking_text)
+                    else:
+                        st.markdown(content)
 
         # 2. Check if chat input should be disabled (e.g. fatal config error like missing API key)
         connection_status = st.session_state.get("connection_status", "Connecting...")
