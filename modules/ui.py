@@ -151,6 +151,17 @@ class UIController:
 
             st.markdown("---")
 
+            # Available Tools list
+            st.markdown("### 🛠️ Available Capabilities")
+            st.markdown(
+                "- **RAG Tool:** Conceptual PDF search  \n"
+                "- **Search Tool:** Real-time web info  \n"
+                "- **Study Tool:** Quizzes & Revision Notes  \n"
+                "- **PDF Stats Tool:** PDF page & word counter"
+            )
+
+            st.markdown("---")
+
             # PDF Upload Section
             st.markdown("### 📂 Study Material")
             uploaded_file = st.file_uploader(
@@ -166,6 +177,14 @@ class UIController:
                         "PDF Uploaded: Received new document upload: %s",
                         uploaded_file.name,
                     )
+
+                    # Calculate and save file size formatted nicely
+                    size_bytes = uploaded_file.size
+                    if size_bytes < 1024 * 1024:
+                        size_str = f"{size_bytes / 1024:.1f} KB"
+                    else:
+                        size_str = f"{size_bytes / (1024 * 1024):.2f} MB"
+                    st.session_state.current_document_size = size_str
 
                     # 1. Upload and save the PDF file copy locally
                     with st.spinner("Processing PDF..."):
@@ -192,6 +211,8 @@ class UIController:
                             )
                             st.session_state.current_document_name = None
                             st.session_state.current_document_path = None
+                            st.session_state.current_document_size = None
+                            st.session_state.current_document_metadata = None
                             st.rerun()
 
                     # 2. Extract, chunk, generate embeddings, and insert in ChromaDB
@@ -217,6 +238,8 @@ class UIController:
                                 )
                                 st.session_state.current_document_name = None
                                 st.session_state.current_document_path = None
+                                st.session_state.current_document_size = None
+                                st.session_state.current_document_metadata = None
                                 st.rerun()
             else:
                 # If uploader is empty but we have an active document name, the user removed it!
@@ -232,6 +255,7 @@ class UIController:
                         )
                     st.session_state.current_document_name = None
                     st.session_state.current_document_path = None
+                    st.session_state.current_document_size = None
                     st.session_state.current_document_metadata = None
                     st.info("Study material removed. Vector store cleared.")
                     st.rerun()
@@ -242,10 +266,23 @@ class UIController:
                 meta = st.session_state.get("current_document_metadata", {})
                 pages = meta.get("total_pages", "Unknown")
                 chunks = meta.get("total_chunks", "Unknown")
+                size = st.session_state.get("current_document_size", "Unknown")
                 st.markdown(
                     f"**File:** `{st.session_state.current_document_name}`  \n"
-                    f"**Pages:** {pages} &bull; **Chunks:** {chunks}"
+                    f"**Size:** {size}  \n"
+                    f"**Pages:** {pages} &bull; **Chunks:** {chunks}  \n"
+                    '<span class="status-tag" style="background-color:rgba(16,185,129,0.1);'
+                    'color:#10B981;border-color:#10B98133;">🟢 Successfully Indexed</span>',
+                    unsafe_allow_html=True,
                 )
+
+            st.markdown("---")
+
+            # Conversation analytics
+            st.markdown("### 📊 Analytics")
+            st.markdown(
+                f"- **Conversation Turns:** `{st.session_state.conversation_count}`"
+            )
 
             st.markdown("---")
 
@@ -316,33 +353,41 @@ class UIController:
             st.markdown("---")
 
             # Reset chat controls
-            st.markdown("### 🧹 Chat Management")
+            st.markdown("### 🧹 Management")
             if st.button(
-                "Clear Chat Button",
-                key="clear_chat_btn",
+                "Reset Conversation",
+                key="reset_chat_btn",
                 use_container_width=True,
-                help="Clear current chat log and wipe vector store collections",
+                help="Wipe chatbot message logs but keep uploaded study material active.",
             ):
                 logger.info(
-                    "UI: Clear Chat button clicked. Resetting history, memory, and database."
+                    "UI: Reset Conversation button clicked. Clearing chat memory only."
                 )
                 st.session_state.conversation_count = 0
-                st.session_state.connection_status = "Connecting..."
-                st.session_state.connection_error = None
+                st.session_state.memory.clear()
+                st.success("Conversation history cleared!")
+                st.rerun()
 
-                # Wipe persistent database collections and agent session memory
+            if st.button(
+                "Clear Study Material",
+                key="clear_pdf_btn",
+                use_container_width=True,
+                help="Remove uploaded PDF, wipe vector collections, and reset metadata.",
+            ):
+                logger.info(
+                    "UI: Clear PDF button clicked. Wiping ChromaDB and metadata."
+                )
                 try:
-                    st.session_state.memory.clear()
                     st.session_state.rag_engine.clear_database()
-                    logger.info("UI: Vector collection and memory wiped successfully.")
+                    logger.info("UI: Vector collection cleared successfully.")
                 except Exception as e:
-                    logger.error("UI: Failed to clear database/memory: %s", str(e))
+                    logger.error("UI: Failed to clear ChromaDB: %s", str(e))
 
                 st.session_state.current_document_name = None
                 st.session_state.current_document_path = None
+                st.session_state.current_document_size = None
                 st.session_state.current_document_metadata = None
-
-                st.success("Chat history and vector store cleared!")
+                st.success("Study material removed and vector store cleared!")
                 st.rerun()
 
             st.markdown("---")
@@ -430,8 +475,29 @@ class UIController:
                         st.session_state.agent.process_request(user_msg)
                         logger.info("UI: AI Agent execution completed.")
                     except Exception as e:
-                        # Capture and map exception to friendly error key
-                        err_key = str(e)
+                        # Map typical exceptions to keys
+                        err_str = str(e).lower()
+                        if (
+                            "api_key" in err_str
+                            or "api key" in err_str
+                            or "unauthorized" in err_str
+                        ):
+                            err_key = "invalid_key"
+                        elif "rate limit" in err_str or "429" in err_str:
+                            err_key = "rate_limit"
+                        elif "timeout" in err_str:
+                            err_key = "timeout"
+                        elif (
+                            "connection" in err_str
+                            or "network" in err_str
+                            or "dns" in err_str
+                        ):
+                            err_key = "network"
+                        elif "model" in err_str:
+                            err_key = "invalid_model"
+                        else:
+                            err_key = "general"
+
                         error_text = st.session_state.prompt_manager.get_error_prompt(
                             err_key
                         )
@@ -439,7 +505,7 @@ class UIController:
                         # Save the friendly error message to memory
                         st.session_state.memory.add("assistant", error_text)
                         logger.error(
-                            "UI: Generation failed with key %s: %s",
+                            "UI: Generation failed with mapped key %s: %s",
                             err_key,
                             str(e),
                             exc_info=True,

@@ -49,6 +49,8 @@ DEFAULT_MODEL: Final[str] = "llama3-70b-8192"
 DEFAULT_EMBEDDING_MODEL: Final[str] = "all-MiniLM-L6-v2"
 DEFAULT_TEMPERATURE: Final[float] = 0.5
 DEFAULT_MAX_TOKENS: Final[int] = 2048
+DEFAULT_MAX_SEARCH_RESULTS: Final[int] = 4
+DEFAULT_ALLOWED_EXTENSIONS: Final[Tuple[str, ...]] = (".pdf",)
 
 # Session State Keys
 STATE_CHAT_HISTORY: Final[str] = "chat_history"

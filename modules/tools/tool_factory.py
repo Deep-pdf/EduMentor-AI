@@ -33,7 +33,9 @@ class ToolFactory:
         Returns:
             SearchTool: Instantiated SearchTool.
         """
-        return SearchTool()
+        from config import config
+
+        return SearchTool(max_results=config.max_search_results)
 
     @staticmethod
     def create_calculator_tool() -> CalculatorTool:

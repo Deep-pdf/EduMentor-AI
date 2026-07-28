@@ -21,6 +21,8 @@ from modules.constants import (
     MAX_UPLOAD_SIZE_MB,
     DIR_VECTOR_DB,
     APP_TITLE,
+    DEFAULT_MAX_SEARCH_RESULTS,
+    DEFAULT_ALLOWED_EXTENSIONS,
 )
 
 # Load environment variables from environment or local .env file
@@ -68,6 +70,18 @@ class AppConfig:
     # File uploads limits
     max_upload_size_mb: int = field(
         default_factory=lambda: int(os.getenv("UPLOAD_LIMIT", str(MAX_UPLOAD_SIZE_MB)))
+    )
+    allowed_extensions: tuple = field(
+        default_factory=lambda: tuple(
+            os.getenv("ALLOWED_EXTENSIONS", ",".join(DEFAULT_ALLOWED_EXTENSIONS)).split(",")
+        )
+    )
+
+    # Search Tool Settings
+    max_search_results: int = field(
+        default_factory=lambda: int(
+            os.getenv("MAX_SEARCH_RESULTS", str(DEFAULT_MAX_SEARCH_RESULTS))
+        )
     )
 
     # RAG Settings

@@ -435,12 +435,27 @@ class AIAgent:
         study_output = None
 
         # 4. Run plan steps
+        def show_status(msg: str) -> None:
+            try:
+                from streamlit.runtime.scriptrunner import get_script_run_ctx
+                if get_script_run_ctx() is not None:
+                    st.write(msg)
+            except Exception:
+                pass
+
         for step in plan["steps"]:
             logger.info("AIAgent: Running execution step '%s'", step)
 
             if step == "execute_tool":
                 # Backwards compatibility execute single direct return tool
                 tool_name = plan["tools_to_execute"][0]
+                if tool_name == "Calculator Tool":
+                    show_status("🔢 *Computing mathematical expression... (Calculator Tool)*")
+                elif tool_name == "Time Tool":
+                    show_status("⏱️ *Retrieving current time details... (Time Tool)*")
+                else:
+                    show_status(f"⚙️ *Invoking {tool_name} for direct answer...*")
+
                 tool = self.tool_registry.get_tool(tool_name)
                 if tool:
                     params = {"query": user_input, "expression": user_input}
@@ -464,19 +479,33 @@ class AIAgent:
 
                     # Execute and harvest results
                     if tool_name == "RAG Tool":
+                        show_status("🔍 *Searching uploaded study materials... (RAG Tool)*")
                         rag_res = tool.execute({"query": user_input})
                         context_block = rag_res.get("context", "")
                         retrieved_docs = rag_res.get("retrieved_docs", [])
                     elif tool_name == "Study Tool":
+                        if intent == "Generate Quiz":
+                            show_status("📝 *Formulating practice questions... (Study Tool)*")
+                        elif intent == "Generate Flashcards":
+                            show_status("🎴 *Designing active-recall flashcards... (Study Tool)*")
+                        elif intent == "Generate Revision Notes":
+                            show_status("✍️ *Compiling structured revision notes... (Study Tool)*")
+                        elif intent == "Summarize Document":
+                            show_status("📖 *Generating document summary... (Study Tool)*")
+                        else:
+                            show_status(f"📚 *Preparing study materials... (Study Tool)*")
                         study_output = tool.execute(
                             {"query": user_input, "intent": intent}
                         )
                     elif tool_name == "Search Tool":
+                        show_status("🌐 *Searching the web for real-time information... (Search Tool)*")
                         context_block = tool.execute({"query": user_input})
                     elif tool_name == "PDF Statistics Tool":
+                        show_status("📊 *Analyzing PDF layout and compiling metrics... (PDF Stats Tool)*")
                         context_block = tool.execute({})
 
             elif step == "call_llm":
+                show_status("🤖 *EduMentor AI Socratic Tutor is formulating response...*")
                 recent_history = []
                 if memory_tool:
                     recent_history = memory_tool.execute({"action": "load_recent"})[:-1]

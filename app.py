@@ -108,6 +108,8 @@ def init_state() -> None:
         st.session_state.current_document_path = None
     if "current_document_metadata" not in st.session_state:
         st.session_state.current_document_metadata = None
+    if "current_document_size" not in st.session_state:
+        st.session_state.current_document_size = None
 
     # 8. Memory State
     if "memory" not in st.session_state:
