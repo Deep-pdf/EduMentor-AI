@@ -49,9 +49,7 @@ class UIController:
         if theme == "light":
             bg_color = "#F8FAFC"
             text_color = "#0F172A"
-            header_gradient = (
-                "linear-gradient(135deg, rgba(88, 101, 242, 0.1), rgba(16, 185, 129, 0.1))"
-            )
+            header_gradient = "linear-gradient(135deg, rgba(88, 101, 242, 0.1), rgba(16, 185, 129, 0.1))"
             card_border = "rgba(0, 0, 0, 0.05)"
             tag_bg = "rgba(88, 101, 242, 0.1)"
             tag_text = "#5865F2"
@@ -200,7 +198,7 @@ class UIController:
                     if st.session_state.get("current_document_path"):
                         with st.spinner("Generating embeddings..."):
                             try:
-                                res = st.session_state.agent.rag_engine.process_document(
+                                res = st.session_state.rag_engine.process_document(
                                     st.session_state.current_document_path
                                 )
                                 st.session_state.current_document_metadata = res
@@ -227,7 +225,7 @@ class UIController:
                         "UI: Active PDF removed by user. Wiping ChromaDB collection."
                     )
                     try:
-                        st.session_state.agent.rag_engine.clear_database()
+                        st.session_state.rag_engine.clear_database()
                     except Exception as e:
                         logger.error(
                             "UI: Failed to clear ChromaDB on file removal: %s", str(e)
@@ -280,8 +278,7 @@ class UIController:
                 st.error(st.session_state.prompt_manager.get_error_prompt(err_key))
 
             # Display RAG database status
-            rag_tool = st.session_state.agent.tool_registry.get_tool("RAG Tool")
-            rag_status = rag_tool.status() if rag_tool else {}
+            rag_status = st.session_state.rag_engine.status()
             db_init = "Ready" if rag_status.get("database_initialized") else "Offline"
             model_loaded = (
                 "Loaded" if rag_status.get("embedding_model_loaded") else "Pending"
@@ -291,6 +288,23 @@ class UIController:
                 f"- **Vector Store:** `{db_init}`  \n"
                 f"- **Embeddings:** `{model_loaded}`",
                 unsafe_allow_html=True,
+            )
+
+            st.markdown("---")
+
+            # Web Search Options
+            st.markdown("### 🔍 Search Options")
+            st.checkbox(
+                "Enable Web Search",
+                key="web_search_enabled",
+                value=True,
+                help="Allow the tutor to search the web for current events/news.",
+            )
+            st.checkbox(
+                "Force Web Search",
+                key="force_web_search",
+                value=False,
+                help="Force the agent to query the web search tool for the next question.",
             )
 
             st.markdown("---")
@@ -312,8 +326,8 @@ class UIController:
 
                 # Wipe persistent database collections and agent session memory
                 try:
-                    st.session_state.agent.memory.clear()
-                    st.session_state.agent.rag_engine.clear_database()
+                    st.session_state.memory.clear()
+                    st.session_state.rag_engine.clear_database()
                     logger.info("UI: Vector collection and memory wiped successfully.")
                 except Exception as e:
                     logger.error("UI: Failed to clear database/memory: %s", str(e))
@@ -350,7 +364,7 @@ class UIController:
         st.markdown("### 💬 Socratic Chat Workspace")
 
         # 1. Retrieve history from Agent Memory (single source of truth)
-        chat_history = st.session_state.agent.memory.load()
+        chat_history = st.session_state.memory.load()
 
         # If history is empty, display greeting from PromptManager
         if not chat_history:
@@ -377,7 +391,7 @@ class UIController:
         # 3. Capture user question
         if user_query := st.chat_input("Ask your Socratic Tutor a question..."):
             logger.info("UI: User message received: %s", user_query[:50])
-            st.session_state.agent.memory.add("user", user_query)
+            st.session_state.memory.add("user", user_query)
             st.session_state.conversation_count += 1
             st.rerun()
 
@@ -400,7 +414,7 @@ class UIController:
                         )
 
                         # Save the friendly error message to memory
-                        st.session_state.agent.memory.add("assistant", error_text)
+                        st.session_state.memory.add("assistant", error_text)
                         logger.error(
                             "UI: Generation failed with key %s: %s",
                             err_key,
